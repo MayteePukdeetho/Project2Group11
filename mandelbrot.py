@@ -1,14 +1,26 @@
 import numpy as np
 from matplotlib import pyplot as plt
 def get_escape_time(c: complex, max_iterations: int) -> int | None:
-    z = c
-    if abs(z) > 2:
-        return 0
+    """
+        Computes the escape time for a given complex number under the Julia set iteration.
 
+        Parameters:
+        - c (complex): The starting complex number.
+        - max_iterations (int): The maximum number of iterations before assuming the point does not escape.
+
+        Returns:
+        - int | None: The iteration count when the point escapes, or None if the point never escapes.
+        """
+    z = c # Initialize z with the starting complex number
+    # If the initial magnitude of z is greater than 2, it escapes immediately
+    if abs(z) > 2:
+        return 0 # Escape happens instantly
+    # Iterate up to max_iterations to check for escape
     for k in range(max_iterations):
-        z = z ** 2 + c
+        z = z ** 2 + c # Apply the Julia set formula: z_n+1 = z_n^2 + c
+        # If the magnitude of z exceeds 2, the point escapes
         if abs(z) > 2:
-            return k + 1
+            return k + 1 # Return the number of iterations before escape
     return None
 
 
@@ -61,3 +73,41 @@ def get_escape_time_color_arr(
             returned_arr[row_num,column_num] = a_value
 
     return returned_arr
+
+def get_julia_escape_time(z_arr: np.ndarray, c: complex, max_iterations: int) -> np.ndarray:
+    """
+       Computes the escape times for each point in the given complex grid under Julia set iteration.
+
+       Parameters:
+       - z_arr (np.ndarray): A 2D array of complex numbers representing the grid.
+       - c (complex): The constant complex parameter for the Julia set formula.
+       - max_iterations (int): The maximum number of iterations before assuming a point does not escape.
+
+       Returns:
+       - np.ndarray: A 2D array with escape time values normalized between 0 and 1.
+       """
+    escape_times = np.zeros_like(z_arr, dtype=float)# Initialize an array to store escape times
+    z = np.copy(z_arr)# Copy input array to avoid modifying original data
+    mask = np.ones_like(z_arr, dtype=bool)  # Track points that haven't escaped yet
+
+    for i in range(max_iterations):# Iterate up to max_iterations
+        z[mask] = z[mask] ** 2 + c # Apply the Julia set iteration formula
+        escaped = np.abs(z) > 2  # Find points that have escaped (magnitude > 2)
+        escape_times[escaped & mask] = (max_iterations - i) / max_iterations # Normalize escape times
+        mask &= ~escaped  # Update mask to exclude newly escaped points
+
+    return escape_times  # Return the computed escape times
+
+def get_julia_color_arr(grid: np.ndarray, c: complex, max_iterations: int) -> np.ndarray:
+    """
+       Converts a complex grid into an array of color values using escape times.
+
+       Parameters:
+       - grid (np.ndarray): The 2D complex number grid.
+       - c (complex): The constant parameter for the Julia set.
+       - max_iterations (int): Maximum iterations before assuming a point is inside the set.
+
+       Returns:
+       - np.ndarray: A 2D array of values between 0 and 1 representing colors.
+       """
+    return get_julia_escape_time(grid, c, max_iterations)
