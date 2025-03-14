@@ -1,28 +1,27 @@
 import numpy as np
-from matplotlib import pyplot as plt
 
 def get_escape_time(c: complex, max_iterations: int) -> int | None:
     """
-        Computes the escape time for a given complex number under the Mandelbrot set iteration.
+        Description:
+            Computes the escape time for a given complex number under the Mandelbrot set iteration.
 
         Parameters:
-        - c (complex): The starting complex number.
-        - max_iterations (int): The maximum number of iterations before assuming the point does not escape.
+            c : complex -> The starting complex number.
+            max_iterations : int -> The maximum number of iterations before assuming the point does not escape.
 
         Returns:
-        - int | None: The iteration count when the point escapes, or None if the point never escapes.
-        """
+            int | None: The iteration count when the point escapes, or None if the point never escapes.
+    """
 
-    z = c # Initialize z with the starting complex number
-    # If the initial magnitude of z is greater than 2, it escapes immediately
-    if abs(z) > 2:
-        return 0 # Escape happens instantly
-    # Iterate up to max_iterations to check for escape
+    z: complex = c
+    if abs(z) > 2: # Escape happens instantly
+        return 0
+
     for k in range(max_iterations):
-        z = z ** 2 + c # Apply the Mandelbrot set formula: z_n+1 = z_n^2 + c
-        # If the magnitude of z exceeds 2, the point escapes
+        z = z ** 2 + c
         if abs(z) > 2:
-            return k + 1 # Return the number of iterations before escape
+            return k + 1
+
     return None
 
 
@@ -31,18 +30,23 @@ def get_complex_grid(
     bottom_right: complex,
     step: float
 ) -> np.ndarray:
-    '''
-    This function will return an array whose contents will be complex numbers evenly spaced between `top_left`
-     and (but not including) `bottom_right`.
-     It does this by making a "real" grid and a "complex" grid using np.arange.
-     Since we want to increase the real part by a step with every column, we put step in the np.arange
-     It's vice versa for the "complex".
-     Then, since we want to combine the two, with reals being modified in the columns and complexes being modified in
-     rows, we combine via the "+" operator. We also multiply by the complex part by 1j so they become complex numbers.
-`'''
+    """
+        Description:
+            This function will return an array whose contents will be complex numbers evenly spaced between `top_left`
+            and (but not including) `bottom_right`. It does this by making a "real" grid and a "complex" grid using `np.arange` and opposite steps
+
+        Parameters:
+            top_left: complex -> upper left inclusive boundary
+            bottom_right: complex -> bottom right non-inclusive boundary
+            step: float -> step value used in `np.arange`
+
+        Returns:
+            An array of complex numbers spaced between [`top_left`] and (`bottom_right`)
+     """
+
     real_vals = np.arange(top_left.real, bottom_right.real, step)
     complex_vals = np.arange(top_left.imag, bottom_right.imag, -step)
-    complex_grid = complex_vals[:,None] * 1j + real_vals[None,:]
+    complex_grid = complex_vals[:,None] * 1j + real_vals[None,:] # We multiply by 1j to convert the grid into complex numbers
 
     return complex_grid
 
@@ -50,95 +54,64 @@ def get_escape_time_color_arr(
     c_arr: np.ndarray,
     max_iterations: int
 ) -> np.ndarray:
-    '''
-    array of complex numbers to array of colour values (ranging from 0 to 1). with use of iteration through the array and get_escape_time().
-    :param c_arr:
-    :param max_iterations:
-    :return:
-    '''
-    returned_arr = np.zeros_like(c_arr, dtype= float)
-    row_num = -1
-    for array_row in c_arr:
-        row_num += 1
-        column_num = -1
-        for complex_num in array_row:
-            column_num += 1
-            a = get_escape_time(complex_num, max_iterations)
-            if a == None:
-                a_value = 0.0
-            elif a == 0:
-                a_value = 1.0
-            elif a == max_iterations:
-                a_value = 1.0/max_iterations
-            else:
-                a_value = (max_iterations-a+1)/(max_iterations+1)
-            returned_arr[row_num,column_num] = a_value
-
-    return returned_arr
-
-def get_julia_escape_time(z: complex, c: complex, max_iterations: int) -> int | None:
     """
-       Computes the escape times for each point in the given complex grid under Julia set iteration.
+        Description:
+            Takes an input of c-values and assigns a color in the range [0, 1] to each point/pixel in the grid.
+            Uses the formula (num_iterations-escape_time+1)/(num_iterations+1) to color escaping pixels
 
-       Parameters:
-       - z_arr (np.ndarray): A 2D array of complex numbers representing the grid.
-       - c (complex): The constant complex parameter for the Julia set formula.
-       - max_iterations (int): The maximum number of iterations before assuming a point does not escape.
+        Parameters:
+            c_arr: np.ndarray -> array of complex values
+            max_iterations: int -> maximum amount of iterations
 
-       Returns:
-       - np.ndarray: A 2D array with escape time values normalized between 0 and 1.
-       """
+        Returns:
+            An array with the same shape of `c_arr` with color values [0, 1]. This array is later used to draw the Mandelbrot set
+    """
 
-    """escape_times = np.zeros_like(z_arr, dtype=float)# Initialize an array to store escape times
-    z = np.copy(z_arr)# Copy input array to avoid modifying original data
-    mask = np.ones_like(z_arr, dtype=bool)  # Track points that haven't escaped yet
+    escape_times = []
+    for row_index, rows in enumerate(c_arr):
+        for column_index, complex_num in enumerate(rows):
+            esc_time = get_escape_time(complex_num, max_iterations)
+            if esc_time is not None:
+                escape_times.append(esc_time)
+            else:
+                escape_times.append(np.nan) # `np.nan` allows for intended functionality since numpy prefers `np.nan` over `None`
+                # Source for np.nan resource: https://numpy.org/doc/stable/user/misc.html
 
-    for i in range(max_iterations):# Iterate up to max_iterations
-        z[mask] = z[mask] ** 2 + c # Apply the Julia set iteration formula
-        escaped = np.abs(z) > 2  # Find points that have escaped (magnitude > 2)
-        escape_times[escaped & mask] = (max_iterations - i) / max_iterations # Normalize escape times
-        mask &= ~escaped  # Update mask to exclude newly escaped points
+    escape_times = np.array(escape_times, dtype = float)
 
-    return escape_times  # Return the computed escape times"""
+    none_indices = np.isnan(escape_times)
+    other_indices = np.logical_not(np.isnan(escape_times)) # Negates the indices of all `np.nan` values in `escape_times`. `np.logical_not` -> from lecture 2/12
 
-    if abs(z) > max(abs(c), 2):
-        return 0  # Escape happens instantly
-    # Iterate up to max_iterations to check for escape
-    for k in range(max_iterations):
-        z = z ** 2 + c  # Apply the Julia set formula
-        # If the magnitude of z exceeds 2, the point escapes
-        if abs(z) > max(abs(c), 2):
-            return k + 1  # Return the number of iterations before escape
-    return None
+    escape_times[other_indices] = (max_iterations - escape_times[other_indices] + 1.0) / (max_iterations + 1.0)
+    escape_times[none_indices] = 0.0
+
+    escape_times = escape_times.reshape(c_arr.shape) # Ensures the same shape of `c_arr` is returned for plotting
+
+    return escape_times
 
 def get_julia_color_arr(grid: np.ndarray[complex], c: complex, max_iterations: int) -> np.ndarray:
     """
-       Converts a complex grid into an array of color values using escape times.
+        Description:
+            Takes an input grid and assigns a color in the range [0, 1] to each point/pixel in the grid.
+            Uses the formula (num_iterations-current_iteration)/(num_iterations) to color escaping pixels
 
-       Parameters:
-       - grid (np.ndarray): The 2D complex number grid.
-       - c (complex): The constant parameter for the Julia set.
-       - max_iterations (int): Maximum iterations before assuming a point is inside the set.
+        Parameters:
+            grid: np.ndarray[complex] -> Input grid of z points
+            c: complex -> complex values added to each point for the Julia iteration formula
+            max_iterations: int -> maximum amount of iterations
 
-       Returns:
-       - np.ndarray: A 2D array of values between 0 and 1 representing colors.
-       """
-    returned_arr = np.zeros_like(grid, dtype=float)
-    row_num = -1
-    for array_row in grid:
-        row_num += 1
-        column_num = -1
-        for complex_num in array_row:
-            column_num += 1
-            a = get_julia_escape_time(grid[0][0], complex_num, max_iterations)
-            if a is None:
-                a_value = 0.0
-            elif a == 0:
-                a_value = 1.0
-            elif a == max_iterations:
-                a_value = 1.0 / max_iterations
-            else:
-                a_value = (max_iterations - a + 1) / (max_iterations + 1)
-            returned_arr[row_num, column_num] = a_value
+        Returns:
+            An array with the same shape of `c_arr` with color values [0, 1]. This array is later used to draw the Julia set
+    """
 
-    return returned_arr
+    escape_times: np.ndarray = np.zeros_like(grid, dtype=float)
+    z = np.copy(grid)  # Avoids modifying original data
+    not_escaped = np.ones_like(z, dtype=bool)  # Track points that haven't escaped yet
+
+    for i in range(max_iterations):
+        z[not_escaped] = z[not_escaped] ** 2 + c
+        escaped = np.abs(z) > np.max([np.abs(c), 2])
+        escape_times[escaped & not_escaped] = (max_iterations - i) / max_iterations
+        not_escaped &= np.logical_not(escaped)  # Excludes newly escaped points -> From lecture 2/12
+
+    return escape_times
